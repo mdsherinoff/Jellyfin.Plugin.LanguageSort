@@ -1,0 +1,106 @@
+name: Build & Release Plugin
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'   # triggers on tags like v1.0.0, v1.2.3
+
+permissions:
+  contents: write  # needed to create GitHub releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      # ── Package the DLL into a zip named after the tag ──────────────────────
+      - name: Package plugin zip
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"          # strip leading 'v'
+          ZIPNAME="Jellyfin.Plugin.LanguageSort_${VERSION}.zip"
+          mkdir -p dist
+          cd bin/Release/net8.0
+          zip "../../../dist/${ZIPNAME}" Jellyfin.Plugin.LanguageSort.dll
+          echo "ZIPNAME=${ZIPNAME}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      # ── Compute MD5 checksum for the manifest ───────────────────────────────
+      - name: Compute MD5
+        run: |
+          MD5=$(md5sum "dist/$ZIPNAME" | awk '{print $1}')
+          echo "MD5=${MD5}" >> $GITHUB_ENV
+
+      # ── Create a GitHub Release and upload the zip ──────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Language Sort ${{ env.VERSION }}"
+          body: |
+            ## Language Sort v${{ env.VERSION }}
+
+            ### Installation
+            Add the repository URL to Jellyfin:
+            ```
+            https://raw.githubusercontent.com/${{ github.repository }}/main/manifest.json
+            ```
+            Then install **Language Sort** from Dashboard → Plugins → Catalogue.
+
+            ### MD5 Checksum
+            `${{ env.MD5 }}`
+          files: dist/${{ env.ZIPNAME }}
+
+      # ── Regenerate manifest.json and push it back to main ───────────────────
+      - name: Update manifest.json
+        run: |
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ env.ZIPNAME }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # If manifest.json already exists, we append a new version entry.
+          # For simplicity here we rewrite the whole file (single-version manifest).
+          cat > manifest.json << EOF
+          [
+            {
+              "guid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+              "name": "Language Sort",
+              "description": "Organizes movies and TV shows into virtual collections sorted by language, no file reorganisation required.",
+              "overview": "Groups your media library by original language using metadata from TMDb/TheTVDB and audio stream info.",
+              "owner": "${{ github.repository_owner }}",
+              "category": "Library",
+              "imageUrl": "https://raw.githubusercontent.com/${{ github.repository }}/main/logo.png",
+              "versions": [
+                {
+                  "version": "${{ env.VERSION }}",
+                  "changelog": "See https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
+                  "targetAbi": "10.9.0.0",
+                  "sourceUrl": "${DOWNLOAD_URL}",
+                  "checksum": "${{ env.MD5 }}",
+                  "timestamp": "${TIMESTAMP}"
+                }
+              ]
+            }
+          ]
+          EOF
+
+      - name: Commit updated manifest.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          git add manifest.json
+          git commit -m "chore: update manifest.json for ${{ github.ref_name }}" || echo "No changes to commit"
+          git push origin main

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Language Sort</title>
+</head>
+<body>
+    <div id="LanguageSortConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+         data-controller="genericRegistrationPage">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="LanguageSortConfigForm">
+                    <div class="sectionTitleContainer flex align-items-center">
+                        <h2 class="sectionTitle">Language Sort Settings</h2>
+                    </div>
+                    <br />
+                    <p>
+                        Language Sort creates virtual collections grouping your movies and TV shows
+                        by their audio/original language.
+                    </p>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="chkIncludeMovies" name="IncludeMovies" type="checkbox" is="emby-checkbox" />
+                            <span>Include Movies</span>
+                        </label>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="chkIncludeTvShows" name="IncludeTvShows" type="checkbox" is="emby-checkbox" />
+                            <span>Include TV Shows</span>
+                        </label>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="chkShowUnknown" name="ShowUnknownLanguage" type="checkbox" is="emby-checkbox" />
+                            <span>Show "Unknown Language" group</span>
+                        </label>
+                        <div class="fieldDescription">
+                            Items with no language metadata will appear under "Unknown Language".
+                        </div>
+                    </div>
+
+                    <br />
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="selLanguageFormat">Language Display Format</label>
+                        <select id="selLanguageFormat" name="LanguageDisplayFormat" is="emby-select">
+                            <option value="EnglishName">English Name (e.g. French)</option>
+                            <option value="NativeName">Native Name (e.g. Français)</option>
+                            <option value="IsoCode">ISO Code (e.g. fr)</option>
+                        </select>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtPinnedLanguages">Pinned Languages (comma-separated ISO codes)</label>
+                        <input id="txtPinnedLanguages" name="PinnedLanguages" type="text" is="emby-input"
+                               placeholder="en,fr,de" />
+                        <div class="fieldDescription">
+                            These languages will appear at the top of the list. Example: <code>en,hi,fr</code>
+                        </div>
+                    </div>
+
+                    <br />
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            var LanguageSortConfig = {
+                pluginUniqueId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+            };
+
+            document.querySelector('#LanguageSortConfigPage').addEventListener('pageshow', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(LanguageSortConfig.pluginUniqueId).then(function (config) {
+                    document.querySelector('#chkIncludeMovies').checked = config.IncludeMovies;
+                    document.querySelector('#chkIncludeTvShows').checked = config.IncludeTvShows;
+                    document.querySelector('#chkShowUnknown').checked = config.ShowUnknownLanguage;
+                    document.querySelector('#selLanguageFormat').value = config.LanguageDisplayFormat;
+                    document.querySelector('#txtPinnedLanguages').value = config.PinnedLanguages;
+                    Dashboard.hideLoadingMsg();
+                });
+            });
+
+            document.querySelector('#LanguageSortConfigForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(LanguageSortConfig.pluginUniqueId).then(function (config) {
+                    config.IncludeMovies = document.querySelector('#chkIncludeMovies').checked;
+                    config.IncludeTvShows = document.querySelector('#chkIncludeTvShows').checked;
+                    config.ShowUnknownLanguage = document.querySelector('#chkShowUnknown').checked;
+                    config.LanguageDisplayFormat = document.querySelector('#selLanguageFormat').value;
+                    config.PinnedLanguages = document.querySelector('#txtPinnedLanguages').value;
+                    ApiClient.updatePluginConfiguration(LanguageSortConfig.pluginUniqueId, config).then(function () {
+                        Dashboard.processPluginConfigurationUpdateResult();
+                    });
+                });
+            });
+        </script>
+    </div>
+</body>
+</html>
