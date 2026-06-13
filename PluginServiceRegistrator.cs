@@ -1,5 +1,6 @@
 using Jellyfin.Plugin.LanguageSort.Providers;
 using MediaBrowser.Common.Plugins;
+using MediaBrowser.Common.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.LanguageSort;
