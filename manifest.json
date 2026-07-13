@@ -9,12 +9,12 @@
     "imageUrl": "https://raw.githubusercontent.com/mdsherinoff/Jellyfin.Plugin.LanguageSort/main/logo.png",
     "versions": [
       {
-        "version": "1.0.0.0",
-        "changelog": "See https://github.com/mdsherinoff/Jellyfin.Plugin.LanguageSort/releases/tag/v1.0.0",
-        "targetAbi": "10.9.0.0",
-        "sourceUrl": "https://github.com/mdsherinoff/Jellyfin.Plugin.LanguageSort/releases/download/v1.0.0/Jellyfin.Plugin.LanguageSort_1.0.0.zip",
-        "checksum": "014ac4dc87fe5903757a60e0b862314f",
-        "timestamp": "2026-07-13T14:19:50Z"
+        "version": "1.0.1.0",
+        "changelog": "See https://github.com/mdsherinoff/Jellyfin.Plugin.LanguageSort/releases/tag/v1.0.1",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/mdsherinoff/Jellyfin.Plugin.LanguageSort/releases/download/v1.0.1/Jellyfin.Plugin.LanguageSort_1.0.1.zip",
+        "checksum": "a6dd4f15c270e0876e5be70dd54f6b8f",
+        "timestamp": "2026-07-13T14:44:36Z"
       }
     ]
   }
