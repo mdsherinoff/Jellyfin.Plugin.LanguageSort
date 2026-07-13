@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading;
-using System.Threading.Tasks;
 using Jellyfin.Plugin.LanguageSort.Providers;
 using MediaBrowser.Controller.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -37,16 +36,15 @@ public class LanguageSortController : ControllerBase
     /// </summary>
     [HttpGet("Groups")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<LanguageGroupDto>>> GetGroupsAsync(
-        CancellationToken cancellationToken)
+    public ActionResult<IEnumerable<LanguageGroupDto>> GetGroups(CancellationToken cancellationToken)
     {
-        var grouped = await _provider.GetItemsByLanguageAsync(cancellationToken).ConfigureAwait(false);
+        var grouped = _provider.GetItemsByLanguage(cancellationToken);
 
         var result = grouped.Select(kvp => new LanguageGroupDto
         {
             Language = kvp.Key,
             ItemCount = kvp.Value.Count
-        });
+        }).ToList();
 
         return Ok(result);
     }
@@ -58,31 +56,31 @@ public class LanguageSortController : ControllerBase
     [HttpGet("Items")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IEnumerable<LanguageItemDto>>> GetItemsForLanguageAsync(
+    public ActionResult<IEnumerable<LanguageItemDto>> GetItemsForLanguage(
         [Required][FromQuery] string language,
         CancellationToken cancellationToken)
     {
-        var grouped = await _provider.GetItemsByLanguageAsync(cancellationToken).ConfigureAwait(false);
+        var grouped = _provider.GetItemsByLanguage(cancellationToken);
 
         if (!grouped.TryGetValue(language, out var items))
         {
             return NotFound($"No group found for language: {language}");
         }
 
-        var result = items.Select(MapToDto);
+        var result = items.Select(item => MapToDto(item, language)).ToList();
         return Ok(result);
     }
 
     // ── DTO mapping ──────────────────────────────────────────────────────────
 
-    private static LanguageItemDto MapToDto(BaseItem item) => new()
+    private static LanguageItemDto MapToDto(BaseItem item, string language) => new()
     {
-        Id          = item.Id,
-        Name        = item.Name,
-        Year        = item.ProductionYear,
-        Type        = item.GetType().Name,
-        Language    = item.OriginalLanguage ?? "Unknown",
-        ImageTag    = item.GetImageInfo(MediaBrowser.Model.Entities.ImageType.Primary, 0)?.Tag
+        Id              = item.Id,
+        Name            = item.Name,
+        Year            = item.ProductionYear,
+        Type            = item.GetType().Name,
+        Language        = language,
+        HasPrimaryImage = item.HasImage(MediaBrowser.Model.Entities.ImageType.Primary, 0)
     };
 }
 
@@ -114,6 +112,7 @@ public class LanguageItemDto
     /// <summary>Gets or sets original language code.</summary>
     public string Language { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets primary image tag (for poster URLs).</summary>
-    public string? ImageTag { get; set; }
+    /// <summary>Gets or sets a value indicating whether the item has a primary image
+    /// (fetch it via /Items/{Id}/Images/Primary).</summary>
+    public bool HasPrimaryImage { get; set; }
 }

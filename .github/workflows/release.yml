@@ -66,6 +66,10 @@ jobs:
       # ── Regenerate manifest.json and push it back to main ───────────────────
       - name: Update manifest.json
         run: |
+          # Switch to main BEFORE writing the file, so the checkout can't clobber it.
+          git fetch origin main
+          git checkout main
+
           DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ env.ZIPNAME }}"
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -76,14 +80,14 @@ jobs:
             {
               "guid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
               "name": "Language Sort",
-              "description": "Organizes movies and TV shows into virtual collections sorted by language, no file reorganisation required.",
-              "overview": "Groups your media library by original language using metadata from TMDb/TheTVDB and audio stream info.",
+              "description": "Organizes movies and TV shows into collections grouped by language",
+              "overview": "Groups your media library into collections by audio language, no file reorganisation required.",
               "owner": "${{ github.repository_owner }}",
               "category": "Library",
               "imageUrl": "https://raw.githubusercontent.com/${{ github.repository }}/main/logo.png",
               "versions": [
                 {
-                  "version": "${{ env.VERSION }}",
+                  "version": "${{ env.VERSION }}.0",
                   "changelog": "See https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
                   "targetAbi": "10.9.0.0",
                   "sourceUrl": "${DOWNLOAD_URL}",
@@ -99,8 +103,6 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout main
           git add manifest.json
           git commit -m "chore: update manifest.json for ${{ github.ref_name }}" || echo "No changes to commit"
           git push origin main

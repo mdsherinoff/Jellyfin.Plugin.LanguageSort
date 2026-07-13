@@ -36,7 +36,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override Guid Id => Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
 
     /// <inheritdoc />
-    public override string Description => "Organizes movies and TV shows into virtual folders by language.";
+    public override string Description => "Organizes movies and TV shows into collections grouped by audio language.";
 
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()

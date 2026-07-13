@@ -2,13 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
-using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.LanguageSort.Providers;
@@ -18,12 +16,21 @@ namespace Jellyfin.Plugin.LanguageSort.Providers;
 /// </summary>
 public class LanguageCollectionProvider
 {
+    private const string UnknownLanguageName = "Unknown Language";
+
+    /// <summary>
+    /// How many episodes of a series to inspect before giving up on language detection.
+    /// </summary>
+    private const int EpisodeSampleSize = 5;
+
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger<LanguageCollectionProvider> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LanguageCollectionProvider"/> class.
     /// </summary>
+    /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
+    /// <param name="logger">Instance of the <see cref="ILogger{LanguageCollectionProvider}"/> interface.</param>
     public LanguageCollectionProvider(
         ILibraryManager libraryManager,
         ILogger<LanguageCollectionProvider> logger)
@@ -33,31 +40,31 @@ public class LanguageCollectionProvider
     }
 
     /// <summary>
-    /// Returns a dictionary mapping display language name -> list of matching items.
+    /// Returns a dictionary mapping display language name -> list of matching items,
+    /// ordered with pinned languages first, then alphabetically.
     /// </summary>
-    public Task<Dictionary<string, List<BaseItem>>> GetItemsByLanguageAsync(
-        CancellationToken cancellationToken = default)
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Grouped library items keyed by language display name.</returns>
+    public Dictionary<string, List<BaseItem>> GetItemsByLanguage(CancellationToken cancellationToken = default)
     {
         var config = Plugin.Instance?.Configuration;
         if (config is null)
         {
-            return Task.FromResult(new Dictionary<string, List<BaseItem>>());
+            return new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
         }
 
         var includeItemTypes = BuildIncludeTypes(config);
         if (includeItemTypes.Length == 0)
         {
-            return Task.FromResult(new Dictionary<string, List<BaseItem>>());
+            return new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var query = new InternalItemsQuery
+        var allItems = _libraryManager.GetItemList(new InternalItemsQuery
         {
             IncludeItemTypes = includeItemTypes,
             Recursive = true,
             IsVirtualItem = false
-        };
-
-        var allItems = _libraryManager.GetItemList(query);
+        });
 
         _logger.LogInformation("LanguageSort: found {Count} items to group.", allItems.Count);
 
@@ -78,7 +85,7 @@ public class LanguageCollectionProvider
                     continue;
                 }
 
-                displayName = "Unknown Language";
+                displayName = UnknownLanguageName;
             }
             else
             {
@@ -94,16 +101,26 @@ public class LanguageCollectionProvider
             list.Add(item);
         }
 
-        // Sort: pinned languages first, then alphabetical
-        var pinnedSet = (config.PinnedLanguages ?? string.Empty)
+        return SortGroups(grouped, config, format);
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    private static Dictionary<string, List<BaseItem>> SortGroups(
+        Dictionary<string, List<BaseItem>> grouped,
+        Configuration.PluginConfiguration config,
+        string format)
+    {
+        // Pinned languages first (in the order the user listed them), then alphabetical.
+        var pinnedNames = (config.PinnedLanguages ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(c => LanguageHelper.Resolve(c, format))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .Select(code => LanguageHelper.Resolve(code, format))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var sorted = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
 
-        // Pinned first (preserve pinned order)
-        foreach (var pinned in pinnedSet)
+        foreach (var pinned in pinnedNames)
         {
             if (grouped.TryGetValue(pinned, out var pinnedList))
             {
@@ -111,7 +128,6 @@ public class LanguageCollectionProvider
             }
         }
 
-        // Then the rest alphabetically
         foreach (var kvp in grouped.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (!sorted.ContainsKey(kvp.Key))
@@ -120,43 +136,60 @@ public class LanguageCollectionProvider
             }
         }
 
-        return Task.FromResult(sorted);
+        return sorted;
     }
-
-    // ── helpers ──────────────────────────────────────────────────────────────
 
     private static BaseItemKind[] BuildIncludeTypes(Configuration.PluginConfiguration config)
     {
-        var types = new List<BaseItemKind>();
-        if (config.IncludeMovies)   types.Add(BaseItemKind.Movie);
-        if (config.IncludeTvShows)  types.Add(BaseItemKind.Series);
+        var types = new List<BaseItemKind>(2);
+        if (config.IncludeMovies)
+        {
+            types.Add(BaseItemKind.Movie);
+        }
+
+        if (config.IncludeTvShows)
+        {
+            types.Add(BaseItemKind.Series);
+        }
+
         return types.ToArray();
     }
 
     /// <summary>
-    /// Picks the best language code for an item.
-    /// Priority: OriginalLanguage > first audio stream language > null.
+    /// Picks the best language code for an item from its audio streams.
+    /// For series, samples the first few episodes.
     /// </summary>
     private static string? GetPrimaryLanguageCode(BaseItem item)
     {
-        // OriginalLanguage is set by metadata providers (TMDb, TheTVDB, etc.)
-        if (!string.IsNullOrWhiteSpace(item.OriginalLanguage))
+        switch (item)
         {
-            return item.OriginalLanguage;
-        }
+            case Video video:
+                return GetAudioLanguage(video);
 
-        // Fallback: first audio media stream
-        if (item is Video video)
-        {
-            var audioStream = video.GetMediaStreams()
-                .FirstOrDefault(s => s.Type == MediaBrowser.Model.Entities.MediaStreamType.Audio
-                                     && !string.IsNullOrWhiteSpace(s.Language));
-            if (audioStream is not null)
-            {
-                return audioStream.Language;
-            }
-        }
+            case Series series:
+                foreach (var episode in series.GetRecursiveChildren(i => i is Episode).OfType<Video>().Take(EpisodeSampleSize))
+                {
+                    var language = GetAudioLanguage(episode);
+                    if (language is not null)
+                    {
+                        return language;
+                    }
+                }
 
-        return null;
+                return null;
+
+            default:
+                return null;
+        }
+    }
+
+    private static string? GetAudioLanguage(Video video)
+    {
+        var language = video.GetMediaStreams()
+            .FirstOrDefault(s => s.Type == MediaStreamType.Audio && !string.IsNullOrWhiteSpace(s.Language))
+            ?.Language?.Trim().ToLowerInvariant();
+
+        // und = undetermined, zxx = no linguistic content, mul/mis = multiple/uncoded
+        return language is null or "und" or "zxx" or "mul" or "mis" ? null : language;
     }
 }

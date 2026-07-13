@@ -1,6 +1,6 @@
 using Jellyfin.Plugin.LanguageSort.Providers;
-using MediaBrowser.Common.Plugins;
-using MediaBrowser.Common.Configuration;
+using MediaBrowser.Controller;
+using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.LanguageSort;
@@ -11,8 +11,8 @@ namespace Jellyfin.Plugin.LanguageSort;
 public class PluginServiceRegistrator : IPluginServiceRegistrator
 {
     /// <inheritdoc />
-    public void RegisterServices(IServiceCollection serviceCollection)
+    public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
-        serviceCollection.AddScoped<LanguageCollectionProvider>();
+        serviceCollection.AddSingleton<LanguageCollectionProvider>();
     }
 }
