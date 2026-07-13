@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
@@ -24,18 +25,22 @@ public class LanguageCollectionProvider
     private const int EpisodeSampleSize = 5;
 
     private readonly ILibraryManager _libraryManager;
+    private readonly TmdbOriginalLanguageClient _tmdbClient;
     private readonly ILogger<LanguageCollectionProvider> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LanguageCollectionProvider"/> class.
     /// </summary>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
+    /// <param name="tmdbClient">Client for TMDb original-language lookups.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{LanguageCollectionProvider}"/> interface.</param>
     public LanguageCollectionProvider(
         ILibraryManager libraryManager,
+        TmdbOriginalLanguageClient tmdbClient,
         ILogger<LanguageCollectionProvider> logger)
     {
         _libraryManager = libraryManager;
+        _tmdbClient = tmdbClient;
         _logger = logger;
     }
 
@@ -45,7 +50,7 @@ public class LanguageCollectionProvider
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Grouped library items keyed by language display name.</returns>
-    public Dictionary<string, List<BaseItem>> GetItemsByLanguage(CancellationToken cancellationToken = default)
+    public async Task<Dictionary<string, List<BaseItem>>> GetItemsByLanguageAsync(CancellationToken cancellationToken = default)
     {
         var config = Plugin.Instance?.Configuration;
         if (config is null)
@@ -76,6 +81,13 @@ public class LanguageCollectionProvider
             cancellationToken.ThrowIfCancellationRequested();
 
             var langCode = GetPrimaryLanguageCode(item, config.UseOriginalTitleFallback);
+
+            if (langCode is null && !string.IsNullOrWhiteSpace(config.TmdbApiKey))
+            {
+                langCode = await _tmdbClient
+                    .GetOriginalLanguageAsync(item, config.TmdbApiKey.Trim(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             string displayName;
             if (string.IsNullOrWhiteSpace(langCode))

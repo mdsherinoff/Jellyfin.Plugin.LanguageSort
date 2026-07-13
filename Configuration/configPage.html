@@ -74,6 +74,16 @@
                         </div>
                     </div>
 
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtTmdbApiKey">TMDb API Key (optional)</label>
+                        <input id="txtTmdbApiKey" name="TmdbApiKey" type="text" is="emby-input" autocomplete="off" />
+                        <div class="fieldDescription">
+                            When set, items whose language can't be determined locally are looked up on
+                            TMDb (the authoritative "original language"). Get a free v3 key at
+                            themoviedb.org &rarr; Settings &rarr; API.
+                        </div>
+                    </div>
+
                     <br />
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
@@ -98,6 +108,7 @@
                     document.querySelector('#chkTitleFallback').checked = config.UseOriginalTitleFallback;
                     document.querySelector('#selLanguageFormat').value = config.LanguageDisplayFormat;
                     document.querySelector('#txtPinnedLanguages').value = config.PinnedLanguages;
+                    document.querySelector('#txtTmdbApiKey').value = config.TmdbApiKey || '';
                     Dashboard.hideLoadingMsg();
                 });
             });
@@ -112,6 +123,7 @@
                     config.UseOriginalTitleFallback = document.querySelector('#chkTitleFallback').checked;
                     config.LanguageDisplayFormat = document.querySelector('#selLanguageFormat').value;
                     config.PinnedLanguages = document.querySelector('#txtPinnedLanguages').value;
+                    config.TmdbApiKey = document.querySelector('#txtTmdbApiKey').value.trim();
                     ApiClient.updatePluginConfiguration(LanguageSortConfig.pluginUniqueId, config).then(function () {
                         Dashboard.processPluginConfigurationUpdateResult();
                     });

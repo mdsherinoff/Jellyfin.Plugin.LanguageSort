@@ -13,6 +13,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     /// <inheritdoc />
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
+        serviceCollection.AddSingleton<TmdbOriginalLanguageClient>();
         serviceCollection.AddSingleton<LanguageCollectionProvider>();
     }
 }

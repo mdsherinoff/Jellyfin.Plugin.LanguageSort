@@ -4,7 +4,13 @@ Automatically organizes your movies and TV shows into **collections grouped by l
 
 ## How it works
 
-The plugin detects each item's language from its **audio streams** (for TV shows, it samples the first few episodes). A scheduled task, **Update Language Collections** (Dashboard → Scheduled Tasks → Library), then creates one Jellyfin collection per language ("Malayalam", "English", "French", …) and keeps them in sync as your library changes. It runs daily at 3:00 AM by default, and you can trigger it manually at any time.
+The plugin detects each item's language using a fallback chain:
+
+1. **Audio stream tags** in the media files (for TV shows, the first few episodes are sampled)
+2. **Original-title script detection** — a title in Malayalam, Tamil, Korean, etc. script identifies the language
+3. **TMDb lookup** (optional) — with a TMDb API key configured, the authoritative `original_language` is fetched using the item's TMDb id
+
+A scheduled task, **Update Language Collections** (Dashboard → Scheduled Tasks → Library), then creates one Jellyfin collection per language ("Malayalam", "English", "French", …) and keeps them in sync as your library changes. It runs daily at 3:00 AM by default, and you can trigger it manually at any time.
 
 The collections appear in every Jellyfin client under **Collections**. Collections created by the plugin are tagged internally, so your own hand-made collections are never touched; if a language disappears from your library, its collection is removed automatically.
 
@@ -18,6 +24,8 @@ Dashboard → Plugins → Language Sort:
 | Show "Unknown Language" group | Collect items whose audio streams have no usable language tag |
 | Language Display Format | English name ("French"), native name ("Français"), or ISO code ("FR") |
 | Pinned Languages | Comma-separated ISO codes (e.g. `en,hi,fr`) listed first in API results |
+| Guess language from original title script | Fallback when audio streams are untagged (on by default) |
+| TMDb API Key | Optional; enables TMDb `original_language` lookups for items that are still unknown. Free key: themoviedb.org → Settings → API |
 
 After changing settings, re-run the **Update Language Collections** task to apply them.
 

@@ -77,7 +77,7 @@ public class LanguageCollectionsTask : IScheduledTask
     /// <inheritdoc />
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var grouped = _provider.GetItemsByLanguage(cancellationToken);
+        var grouped = await _provider.GetItemsByLanguageAsync(cancellationToken).ConfigureAwait(false);
 
         // All collections this plugin created previously, keyed by their tag value.
         // Duplicates (e.g. left over from an interrupted run) are treated as stale.

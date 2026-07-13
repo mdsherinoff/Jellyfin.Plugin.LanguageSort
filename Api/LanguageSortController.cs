@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.LanguageSort.Providers;
 using MediaBrowser.Controller.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -36,9 +37,9 @@ public class LanguageSortController : ControllerBase
     /// </summary>
     [HttpGet("Groups")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<LanguageGroupDto>> GetGroups(CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<LanguageGroupDto>>> GetGroupsAsync(CancellationToken cancellationToken)
     {
-        var grouped = _provider.GetItemsByLanguage(cancellationToken);
+        var grouped = await _provider.GetItemsByLanguageAsync(cancellationToken).ConfigureAwait(false);
 
         var result = grouped.Select(kvp => new LanguageGroupDto
         {
@@ -56,11 +57,11 @@ public class LanguageSortController : ControllerBase
     [HttpGet("Items")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<IEnumerable<LanguageItemDto>> GetItemsForLanguage(
+    public async Task<ActionResult<IEnumerable<LanguageItemDto>>> GetItemsForLanguageAsync(
         [Required][FromQuery] string language,
         CancellationToken cancellationToken)
     {
-        var grouped = _provider.GetItemsByLanguage(cancellationToken);
+        var grouped = await _provider.GetItemsByLanguageAsync(cancellationToken).ConfigureAwait(false);
 
         if (!grouped.TryGetValue(language, out var items))
         {
