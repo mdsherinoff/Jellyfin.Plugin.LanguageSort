@@ -16,10 +16,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -33,7 +33,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"          # strip leading 'v'
           ZIPNAME="Jellyfin.Plugin.LanguageSort_${VERSION}.zip"
           mkdir -p dist
-          cd bin/Release/net8.0
+          cd bin/Release/net9.0
           zip "../../../dist/${ZIPNAME}" Jellyfin.Plugin.LanguageSort.dll
           echo "ZIPNAME=${ZIPNAME}" >> $GITHUB_ENV
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
@@ -89,7 +89,7 @@ jobs:
                 {
                   "version": "${{ env.VERSION }}.0",
                   "changelog": "See https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
-                  "targetAbi": "10.9.0.0",
+                  "targetAbi": "10.11.0.0",
                   "sourceUrl": "${DOWNLOAD_URL}",
                   "checksum": "${{ env.MD5 }}",
                   "timestamp": "${TIMESTAMP}"

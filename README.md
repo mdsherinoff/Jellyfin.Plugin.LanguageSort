@@ -59,16 +59,16 @@ The plugin also exposes endpoints (require an authenticated Jellyfin session or 
 
 ## Building from source
 
-Requires the .NET 8 SDK (or newer):
+Requires the .NET 9 SDK (or newer):
 
 ```sh
 dotnet build --configuration Release
 ```
 
-Copy `bin/Release/net8.0/Jellyfin.Plugin.LanguageSort.dll` into a `LanguageSort` folder inside your Jellyfin `plugins` directory and restart Jellyfin.
+Copy `bin/Release/net9.0/Jellyfin.Plugin.LanguageSort.dll` into a `LanguageSort` folder inside your Jellyfin `plugins` directory and restart Jellyfin.
 
 Releases are automated: pushing a tag like `v1.0.0` builds the plugin, publishes a GitHub release, and updates `manifest.json`.
 
 ## Compatibility
 
-- Jellyfin **10.9.x** (target ABI `10.9.0.0`)
+- Jellyfin **10.11.x** (target ABI `10.11.0.0`)
