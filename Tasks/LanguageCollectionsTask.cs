@@ -9,6 +9,7 @@ using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
@@ -31,6 +32,7 @@ public class LanguageCollectionsTask : IScheduledTask
     private readonly LanguageCollectionProvider _provider;
     private readonly ICollectionManager _collectionManager;
     private readonly ILibraryManager _libraryManager;
+    private readonly IProviderManager _providerManager;
     private readonly ILogger<LanguageCollectionsTask> _logger;
 
     /// <summary>
@@ -39,16 +41,19 @@ public class LanguageCollectionsTask : IScheduledTask
     /// <param name="provider">The language grouping provider.</param>
     /// <param name="collectionManager">Instance of the <see cref="ICollectionManager"/> interface.</param>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
+    /// <param name="providerManager">Instance of the <see cref="IProviderManager"/> interface.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{LanguageCollectionsTask}"/> interface.</param>
     public LanguageCollectionsTask(
         LanguageCollectionProvider provider,
         ICollectionManager collectionManager,
         ILibraryManager libraryManager,
+        IProviderManager providerManager,
         ILogger<LanguageCollectionsTask> logger)
     {
         _provider = provider;
         _collectionManager = collectionManager;
         _libraryManager = libraryManager;
+        _providerManager = providerManager;
         _logger = logger;
     }
 
@@ -108,10 +113,12 @@ public class LanguageCollectionsTask : IScheduledTask
             if (ownedCollections.Remove(tag, out var existing))
             {
                 await UpdateCollectionAsync(existing, items).ConfigureAwait(false);
+                await EnsureImageAsync(existing, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                await CreateCollectionAsync(displayName, tag, items).ConfigureAwait(false);
+                var created = await CreateCollectionAsync(displayName, tag, items).ConfigureAwait(false);
+                await EnsureImageAsync(created, cancellationToken).ConfigureAwait(false);
             }
 
             processed++;
@@ -131,17 +138,50 @@ public class LanguageCollectionsTask : IScheduledTask
         progress.Report(100);
     }
 
-    private async Task CreateCollectionAsync(string displayName, string tag, IReadOnlyList<BaseItem> items)
+    private async Task<BoxSet> CreateCollectionAsync(string displayName, string tag, IReadOnlyList<BaseItem> items)
     {
         _logger.LogInformation("LanguageSort: creating collection {Name} with {Count} items.", displayName, items.Count);
 
-        await _collectionManager.CreateCollectionAsync(new CollectionCreationOptions
+        return await _collectionManager.CreateCollectionAsync(new CollectionCreationOptions
         {
             Name = displayName,
             IsLocked = true,
             ProviderIds = new Dictionary<string, string> { [ProviderIdKey] = tag },
             ItemIdList = items.Select(i => i.Id.ToString("N")).ToArray()
         }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Generates and saves a poster for the collection unless it already has one
+    /// (a user-provided image is never overwritten).
+    /// </summary>
+    private async Task EnsureImageAsync(BoxSet collection, CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance?.Configuration;
+        if (config?.GenerateCollectionImages != true || collection.HasImage(ImageType.Primary, 0))
+        {
+            return;
+        }
+
+        try
+        {
+            using var poster = CollectionImageGenerator.GeneratePoster(collection.Name);
+            await _providerManager
+                .SaveImage(collection, poster, "image/png", ImageType.Primary, null, cancellationToken)
+                .ConfigureAwait(false);
+            await collection
+                .UpdateToRepositoryAsync(ItemUpdateType.ImageUpdate, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Image generation must never fail the sync itself.
+            _logger.LogWarning(ex, "LanguageSort: could not generate image for collection {Name}.", collection.Name);
+        }
     }
 
     private async Task UpdateCollectionAsync(BoxSet collection, IReadOnlyList<BaseItem> items)

@@ -46,4 +46,10 @@ public class PluginConfiguration : BasePluginConfiguration
     /// determined locally are looked up on TMDb using their stored TMDb id.
     /// </summary>
     public string TmdbApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to generate poster images for
+    /// language collections that don't have one.
+    /// </summary>
+    public bool GenerateCollectionImages { get; set; } = true;
 }

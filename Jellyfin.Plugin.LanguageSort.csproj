@@ -8,12 +8,14 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Nullable>enable</Nullable>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Jellyfin.Model" Version="10.11.5" />
     <PackageReference Include="Jellyfin.Controller" Version="10.11.5" />
+    <!-- Compile-time only: the server already loads this exact version; the plugin binds to it at runtime. -->
+    <PackageReference Include="SkiaSharp" Version="3.116.1" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>

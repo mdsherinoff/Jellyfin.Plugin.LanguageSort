@@ -25,6 +25,7 @@ Dashboard → Plugins → Language Sort:
 | Language Display Format | English name ("French"), native name ("Français"), or ISO code ("FR") |
 | Pinned Languages | Comma-separated ISO codes (e.g. `en,hi,fr`) listed first in API results |
 | Guess language from original title script | Fallback when audio streams are untagged (on by default) |
+| Generate collection poster images | Auto-creates a poster with the language name for collections without an image; custom images are never overwritten (on by default) |
 | TMDb API Key | Optional; enables TMDb `original_language` lookups for items that are still unknown. Free key: themoviedb.org → Settings → API |
 
 After changing settings, re-run the **Update Language Collections** task to apply them.

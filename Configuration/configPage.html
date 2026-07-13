@@ -46,6 +46,17 @@
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
+                            <input id="chkGenerateImages" name="GenerateCollectionImages" type="checkbox" is="emby-checkbox" />
+                            <span>Generate collection poster images</span>
+                        </label>
+                        <div class="fieldDescription">
+                            Creates a poster with the language name for collections that have no image.
+                            Your own custom images are never overwritten.
+                        </div>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
                             <input id="chkTitleFallback" name="UseOriginalTitleFallback" type="checkbox" is="emby-checkbox" />
                             <span>Guess language from original title script</span>
                         </label>
@@ -106,6 +117,7 @@
                     document.querySelector('#chkIncludeTvShows').checked = config.IncludeTvShows;
                     document.querySelector('#chkShowUnknown').checked = config.ShowUnknownLanguage;
                     document.querySelector('#chkTitleFallback').checked = config.UseOriginalTitleFallback;
+                    document.querySelector('#chkGenerateImages').checked = config.GenerateCollectionImages;
                     document.querySelector('#selLanguageFormat').value = config.LanguageDisplayFormat;
                     document.querySelector('#txtPinnedLanguages').value = config.PinnedLanguages;
                     document.querySelector('#txtTmdbApiKey').value = config.TmdbApiKey || '';
@@ -121,6 +133,7 @@
                     config.IncludeTvShows = document.querySelector('#chkIncludeTvShows').checked;
                     config.ShowUnknownLanguage = document.querySelector('#chkShowUnknown').checked;
                     config.UseOriginalTitleFallback = document.querySelector('#chkTitleFallback').checked;
+                    config.GenerateCollectionImages = document.querySelector('#chkGenerateImages').checked;
                     config.LanguageDisplayFormat = document.querySelector('#selLanguageFormat').value;
                     config.PinnedLanguages = document.querySelector('#txtPinnedLanguages').value;
                     config.TmdbApiKey = document.querySelector('#txtTmdbApiKey').value.trim();
