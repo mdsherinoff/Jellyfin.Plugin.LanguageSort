@@ -80,14 +80,7 @@ public class LanguageCollectionProvider
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var langCode = GetPrimaryLanguageCode(item, config.UseOriginalTitleFallback);
-
-            if (langCode is null && !string.IsNullOrWhiteSpace(config.TmdbApiKey))
-            {
-                langCode = await _tmdbClient
-                    .GetOriginalLanguageAsync(item, config.TmdbApiKey.Trim(), cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            var langCode = await ResolveLanguageAsync(item, config, cancellationToken).ConfigureAwait(false);
 
             string displayName;
             if (string.IsNullOrWhiteSpace(langCode))
@@ -168,26 +161,38 @@ public class LanguageCollectionProvider
     }
 
     /// <summary>
-    /// Picks the best language code for an item from its audio streams.
-    /// For series, samples the first few episodes. Optionally falls back to
-    /// detecting the writing system of the original title.
+    /// Resolves an item's language, preferring the film's original language over
+    /// whatever audio track the file happens to carry (which may be a dub):
+    /// 1. TMDb original_language (when an API key is configured),
+    /// 2. script detection on the original title,
+    /// 3. audio stream tags as a last resort.
     /// </summary>
-    private static string? GetPrimaryLanguageCode(BaseItem item, bool useTitleFallback)
+    private async Task<string?> ResolveLanguageAsync(
+        BaseItem item,
+        Configuration.PluginConfiguration config,
+        CancellationToken cancellationToken)
     {
-        var code = item switch
-        {
-            Video video => GetAudioLanguage(video),
-            Series series => GetSeriesAudioLanguage(series),
-            _ => null
-        };
+        string? code = null;
 
-        if (code is null && useTitleFallback)
+        if (!string.IsNullOrWhiteSpace(config.TmdbApiKey))
+        {
+            code = await _tmdbClient
+                .GetOriginalLanguageAsync(item, config.TmdbApiKey.Trim(), cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        if (code is null && config.UseOriginalTitleFallback)
         {
             code = ScriptLanguageDetector.Detect(item.OriginalTitle)
                    ?? ScriptLanguageDetector.Detect(item.Name);
         }
 
-        return code;
+        return code ?? item switch
+        {
+            Video video => GetAudioLanguage(video),
+            Series series => GetSeriesAudioLanguage(series),
+            _ => null
+        };
     }
 
     private static string? GetSeriesAudioLanguage(Series series)

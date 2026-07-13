@@ -89,9 +89,9 @@
                         <label class="inputLabel inputLabelUnfocused" for="txtTmdbApiKey">TMDb API Key (optional)</label>
                         <input id="txtTmdbApiKey" name="TmdbApiKey" type="text" is="emby-input" autocomplete="off" />
                         <div class="fieldDescription">
-                            When set, items whose language can't be determined locally are looked up on
-                            TMDb (the authoritative "original language"). Get a free v3 key at
-                            themoviedb.org &rarr; Settings &rarr; API.
+                            When set, each item's authoritative "original language" is fetched from TMDb
+                            and preferred over audio track tags (which may belong to a dub). Get a free
+                            v3 key at themoviedb.org &rarr; Settings &rarr; API.
                         </div>
                     </div>
 
