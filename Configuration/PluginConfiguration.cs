@@ -34,4 +34,10 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Example: "en,fr,de"
     /// </summary>
     public string PinnedLanguages { get; set; } = "en";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to guess the language from the
+    /// writing system of the original title when audio streams carry no language tag.
+    /// </summary>
+    public bool UseOriginalTitleFallback { get; set; } = true;
 }

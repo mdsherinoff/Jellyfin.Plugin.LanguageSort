@@ -44,6 +44,17 @@
                         </div>
                     </div>
 
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="chkTitleFallback" name="UseOriginalTitleFallback" type="checkbox" is="emby-checkbox" />
+                            <span>Guess language from original title script</span>
+                        </label>
+                        <div class="fieldDescription">
+                            When audio streams have no language tag, detect the language from the
+                            writing system of the original title (e.g. Malayalam, Tamil, Korean scripts).
+                        </div>
+                    </div>
+
                     <br />
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="selLanguageFormat">Language Display Format</label>
@@ -84,6 +95,7 @@
                     document.querySelector('#chkIncludeMovies').checked = config.IncludeMovies;
                     document.querySelector('#chkIncludeTvShows').checked = config.IncludeTvShows;
                     document.querySelector('#chkShowUnknown').checked = config.ShowUnknownLanguage;
+                    document.querySelector('#chkTitleFallback').checked = config.UseOriginalTitleFallback;
                     document.querySelector('#selLanguageFormat').value = config.LanguageDisplayFormat;
                     document.querySelector('#txtPinnedLanguages').value = config.PinnedLanguages;
                     Dashboard.hideLoadingMsg();
@@ -97,6 +109,7 @@
                     config.IncludeMovies = document.querySelector('#chkIncludeMovies').checked;
                     config.IncludeTvShows = document.querySelector('#chkIncludeTvShows').checked;
                     config.ShowUnknownLanguage = document.querySelector('#chkShowUnknown').checked;
+                    config.UseOriginalTitleFallback = document.querySelector('#chkTitleFallback').checked;
                     config.LanguageDisplayFormat = document.querySelector('#selLanguageFormat').value;
                     config.PinnedLanguages = document.querySelector('#txtPinnedLanguages').value;
                     ApiClient.updatePluginConfiguration(LanguageSortConfig.pluginUniqueId, config).then(function () {

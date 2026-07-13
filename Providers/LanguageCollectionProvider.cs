@@ -75,7 +75,7 @@ public class LanguageCollectionProvider
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var langCode = GetPrimaryLanguageCode(item);
+            var langCode = GetPrimaryLanguageCode(item, config.UseOriginalTitleFallback);
 
             string displayName;
             if (string.IsNullOrWhiteSpace(langCode))
@@ -157,30 +157,39 @@ public class LanguageCollectionProvider
 
     /// <summary>
     /// Picks the best language code for an item from its audio streams.
-    /// For series, samples the first few episodes.
+    /// For series, samples the first few episodes. Optionally falls back to
+    /// detecting the writing system of the original title.
     /// </summary>
-    private static string? GetPrimaryLanguageCode(BaseItem item)
+    private static string? GetPrimaryLanguageCode(BaseItem item, bool useTitleFallback)
     {
-        switch (item)
+        var code = item switch
         {
-            case Video video:
-                return GetAudioLanguage(video);
+            Video video => GetAudioLanguage(video),
+            Series series => GetSeriesAudioLanguage(series),
+            _ => null
+        };
 
-            case Series series:
-                foreach (var episode in series.GetRecursiveChildren(i => i is Episode).OfType<Video>().Take(EpisodeSampleSize))
-                {
-                    var language = GetAudioLanguage(episode);
-                    if (language is not null)
-                    {
-                        return language;
-                    }
-                }
-
-                return null;
-
-            default:
-                return null;
+        if (code is null && useTitleFallback)
+        {
+            code = ScriptLanguageDetector.Detect(item.OriginalTitle)
+                   ?? ScriptLanguageDetector.Detect(item.Name);
         }
+
+        return code;
+    }
+
+    private static string? GetSeriesAudioLanguage(Series series)
+    {
+        foreach (var episode in series.GetRecursiveChildren(i => i is Episode).OfType<Video>().Take(EpisodeSampleSize))
+        {
+            var language = GetAudioLanguage(episode);
+            if (language is not null)
+            {
+                return language;
+            }
+        }
+
+        return null;
     }
 
     private static string? GetAudioLanguage(Video video)
