@@ -26,6 +26,8 @@ Dashboard → Plugins → Language Sort:
 | Pinned Languages | Comma-separated ISO codes (e.g. `en,hi,fr`) listed first in API results |
 | Guess language from original title script | Fallback when audio streams are untagged (on by default) |
 | Generate collection poster images | Auto-creates a poster with the language name for collections without an image; custom images are never overwritten (on by default) |
+| Show language collections before other collections | Pins them as one block at the top of the Collections view via a forced sort title (on by default) |
+| Collection name prefix | Optional visible prefix, e.g. "Language:" gives "Language: Malayalam" |
 | TMDb API Key | Recommended; makes TMDb `original_language` the primary source for every matched item. Free key: themoviedb.org → Settings → API |
 
 After changing settings, re-run the **Update Language Collections** task to apply them.

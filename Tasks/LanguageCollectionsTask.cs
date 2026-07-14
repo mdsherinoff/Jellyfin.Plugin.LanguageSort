@@ -110,16 +110,19 @@ public class LanguageCollectionsTask : IScheduledTask
             cancellationToken.ThrowIfCancellationRequested();
 
             var tag = displayName.ToLowerInvariant();
+            BoxSet collection;
             if (ownedCollections.Remove(tag, out var existing))
             {
-                await UpdateCollectionAsync(existing, items).ConfigureAwait(false);
-                await EnsureImageAsync(existing, cancellationToken).ConfigureAwait(false);
+                collection = existing;
+                await UpdateCollectionAsync(collection, items).ConfigureAwait(false);
             }
             else
             {
-                var created = await CreateCollectionAsync(displayName, tag, items).ConfigureAwait(false);
-                await EnsureImageAsync(created, cancellationToken).ConfigureAwait(false);
+                collection = await CreateCollectionAsync(displayName, tag, items).ConfigureAwait(false);
             }
+
+            await ApplyNamingAsync(collection, displayName, cancellationToken).ConfigureAwait(false);
+            await EnsureImageAsync(collection, displayName, cancellationToken).ConfigureAwait(false);
 
             processed++;
             progress.Report(processed * 100.0 / grouped.Count);
@@ -152,10 +155,47 @@ public class LanguageCollectionsTask : IScheduledTask
     }
 
     /// <summary>
-    /// Generates and saves a poster for the collection unless it already has one
-    /// (a user-provided image is never overwritten).
+    /// Keeps the collection's display name and sort title in line with the settings:
+    /// an optional visible prefix, and a forced sort title starting with "!" that
+    /// pins language collections before other collections when sorting by name.
     /// </summary>
-    private async Task EnsureImageAsync(BoxSet collection, CancellationToken cancellationToken)
+    private static async Task ApplyNamingAsync(BoxSet collection, string displayName, CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance?.Configuration;
+        if (config is null)
+        {
+            return;
+        }
+
+        var prefix = config.CollectionNamePrefix?.Trim();
+        var desiredName = string.IsNullOrEmpty(prefix) ? displayName : $"{prefix} {displayName}";
+        var desiredSortName = config.SortLanguageCollectionsFirst ? "!" + displayName : null;
+
+        var changed = false;
+        if (!string.Equals(collection.Name, desiredName, StringComparison.Ordinal))
+        {
+            collection.Name = desiredName;
+            changed = true;
+        }
+
+        if (!string.Equals(collection.ForcedSortName, desiredSortName, StringComparison.Ordinal))
+        {
+            collection.ForcedSortName = desiredSortName;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Generates and saves a poster for the collection unless it already has one
+    /// (a user-provided image is never overwritten). The poster shows the plain
+    /// language name, without any configured name prefix.
+    /// </summary>
+    private async Task EnsureImageAsync(BoxSet collection, string label, CancellationToken cancellationToken)
     {
         var config = Plugin.Instance?.Configuration;
         if (config?.GenerateCollectionImages != true || collection.HasImage(ImageType.Primary, 0))
@@ -165,7 +205,7 @@ public class LanguageCollectionsTask : IScheduledTask
 
         try
         {
-            using var poster = CollectionImageGenerator.GeneratePoster(collection.Name);
+            using var poster = CollectionImageGenerator.GeneratePoster(label);
             await _providerManager
                 .SaveImage(collection, poster, "image/png", ImageType.Primary, null, cancellationToken)
                 .ConfigureAwait(false);

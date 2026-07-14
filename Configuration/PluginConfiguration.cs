@@ -52,4 +52,16 @@ public class PluginConfiguration : BasePluginConfiguration
     /// language collections that don't have one.
     /// </summary>
     public bool GenerateCollectionImages { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether language collections are pinned
+    /// before all other collections when sorting by name, via a forced sort title.
+    /// </summary>
+    public bool SortLanguageCollectionsFirst { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets an optional visible prefix for language collection names,
+    /// e.g. "Language:" produces "Language: Malayalam".
+    /// </summary>
+    public string CollectionNamePrefix { get; set; } = string.Empty;
 }

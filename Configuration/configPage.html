@@ -46,6 +46,27 @@
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
+                            <input id="chkSortFirst" name="SortLanguageCollectionsFirst" type="checkbox" is="emby-checkbox" />
+                            <span>Show language collections before other collections</span>
+                        </label>
+                        <div class="fieldDescription">
+                            Pins language collections as one block at the top of the Collections view
+                            (when sorted by name), before franchise and other collections.
+                        </div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtNamePrefix">Collection name prefix (optional)</label>
+                        <input id="txtNamePrefix" name="CollectionNamePrefix" type="text" is="emby-input"
+                               placeholder="Language:" />
+                        <div class="fieldDescription">
+                            Visible prefix for language collection names, e.g. "Language:" gives
+                            "Language: Malayalam". Leave empty for plain names.
+                        </div>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
                             <input id="chkGenerateImages" name="GenerateCollectionImages" type="checkbox" is="emby-checkbox" />
                             <span>Generate collection poster images</span>
                         </label>
@@ -118,6 +139,8 @@
                     document.querySelector('#chkShowUnknown').checked = config.ShowUnknownLanguage;
                     document.querySelector('#chkTitleFallback').checked = config.UseOriginalTitleFallback;
                     document.querySelector('#chkGenerateImages').checked = config.GenerateCollectionImages;
+                    document.querySelector('#chkSortFirst').checked = config.SortLanguageCollectionsFirst;
+                    document.querySelector('#txtNamePrefix').value = config.CollectionNamePrefix || '';
                     document.querySelector('#selLanguageFormat').value = config.LanguageDisplayFormat;
                     document.querySelector('#txtPinnedLanguages').value = config.PinnedLanguages;
                     document.querySelector('#txtTmdbApiKey').value = config.TmdbApiKey || '';
@@ -134,6 +157,8 @@
                     config.ShowUnknownLanguage = document.querySelector('#chkShowUnknown').checked;
                     config.UseOriginalTitleFallback = document.querySelector('#chkTitleFallback').checked;
                     config.GenerateCollectionImages = document.querySelector('#chkGenerateImages').checked;
+                    config.SortLanguageCollectionsFirst = document.querySelector('#chkSortFirst').checked;
+                    config.CollectionNamePrefix = document.querySelector('#txtNamePrefix').value.trim();
                     config.LanguageDisplayFormat = document.querySelector('#selLanguageFormat').value;
                     config.PinnedLanguages = document.querySelector('#txtPinnedLanguages').value;
                     config.TmdbApiKey = document.querySelector('#txtTmdbApiKey').value.trim();
