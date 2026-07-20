@@ -1,6 +1,6 @@
 # Jellyfin Language Sort Plugin
 
-Automatically organizes your movies and TV shows into **collections grouped by language** — no file or folder reorganisation required.
+Automatically organizes your media files into **collections grouped by language** without any file or folder reorganisation required.
 
 ## How it works
 
