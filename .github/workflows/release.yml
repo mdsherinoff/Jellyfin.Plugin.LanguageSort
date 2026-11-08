@@ -81,7 +81,7 @@ jobs:
               "guid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
               "name": "Language Sort",
               "description": "Organizes movies and TV shows into collections grouped by language",
-              "overview": "Groups your media library into collections by audio language, no file reorganisation required.",
+              "overview": "Groups your media library into collections by original language, no file reorganisation required.",
               "owner": "${{ github.repository_owner }}",
               "category": "Library",
               "imageUrl": "https://raw.githubusercontent.com/${{ github.repository }}/main/logo.png",
