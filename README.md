@@ -21,10 +21,10 @@ Dashboard → Plugins → Language Sort:
 | Setting | Description |
 |---|---|
 | Include Movies / TV Shows | Which item types to group |
-| Show "Unknown Language" group | Collect items whose audio streams have no usable language tag |
+| Show "Unknown Language" group | Collect items whose language could not be determined by any method |
 | Language Display Format | English name ("French"), native name ("Français"), or ISO code ("FR") |
 | Pinned Languages | Comma-separated ISO codes (e.g. `en,hi,fr`) listed first in API results |
-| Guess language from original title script | Fallback when audio streams are untagged (on by default) |
+| Guess language from original title script | Used when TMDb gives no answer, before audio track tags (on by default) |
 | Generate collection poster images | Auto-creates a poster with the language name for collections without an image; custom images are never overwritten (on by default) |
 | Show language collections before other collections | Pins them as one block at the top of the Collections view via a forced sort title (on by default) |
 | Collection name prefix | Optional visible prefix, e.g. "Language:" gives "Language: Malayalam" |
@@ -36,8 +36,8 @@ After changing settings, re-run the **Update Language Collections** task to appl
 
 The plugin also exposes endpoints (require an authenticated Jellyfin session or API key):
 
-- `GET /LanguageSort/Groups` — all language groups with item counts
-- `GET /LanguageSort/Items?language=French` — items in one group
+- `GET /LanguageSort/Groups` — all language groups with their code and item count
+- `GET /LanguageSort/Items?language=French` — items in one group (the code also works: `?language=fr`)
 
 ## Installation
 
@@ -66,7 +66,7 @@ The plugin also exposes endpoints (require an authenticated Jellyfin session or 
 2. Go to **Dashboard** → **Scheduled Tasks** and run **Update Language Collections**
 3. Browse your library's **Collections** view
 
-> **Note:** language detection relies on the audio streams of your media files being tagged. If many items land in "Unknown Language", your files are missing audio language tags — a library scan with "Replace all metadata" can help Jellyfin (re-)probe them.
+> **Note:** if many items land in "Unknown Language", first add a TMDb API key — it covers every item Jellyfin matched to TMDb. Items that still end up there are unmatched, have a Latin-script title, and have untagged audio; fixing their metadata match (Identify) or running a library scan with "Replace all metadata" usually helps.
 
 ## Building from source
 

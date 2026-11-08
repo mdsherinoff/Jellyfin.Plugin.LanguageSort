@@ -16,7 +16,7 @@
                     <br />
                     <p>
                         Language Sort groups your movies and TV shows into collections by their
-                        audio language. After saving, run the <strong>Update Language Collections</strong>
+                        original language. After saving, run the <strong>Update Language Collections</strong>
                         scheduled task (Dashboard &rarr; Scheduled Tasks) to apply changes.
                     </p>
 
@@ -82,8 +82,9 @@
                             <span>Guess language from original title script</span>
                         </label>
                         <div class="fieldDescription">
-                            When audio streams have no language tag, detect the language from the
-                            writing system of the original title (e.g. Malayalam, Tamil, Korean scripts).
+                            When TMDb gives no answer, detect the language from the writing system of
+                            the original title (e.g. Malayalam, Tamil, Korean scripts) before falling
+                            back to audio track tags.
                         </div>
                     </div>
 

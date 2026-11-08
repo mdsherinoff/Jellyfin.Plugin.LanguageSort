@@ -17,7 +17,15 @@ namespace Jellyfin.Plugin.LanguageSort.Providers;
 /// </summary>
 public class LanguageCollectionProvider
 {
-    private const string UnknownLanguageName = "Unknown Language";
+    /// <summary>
+    /// Group code used for items whose language could not be determined.
+    /// </summary>
+    public const string UnknownLanguageCode = "unknown";
+
+    /// <summary>
+    /// Display name of the unknown-language group.
+    /// </summary>
+    public const string UnknownLanguageName = "Unknown Language";
 
     /// <summary>
     /// How many episodes of a series to inspect before giving up on language detection.
@@ -45,23 +53,23 @@ public class LanguageCollectionProvider
     }
 
     /// <summary>
-    /// Returns a dictionary mapping display language name -> list of matching items,
-    /// ordered with pinned languages first, then alphabetically.
+    /// Groups the library by language, ordered with pinned languages first, then
+    /// alphabetically by display name.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Grouped library items keyed by language display name.</returns>
-    public async Task<Dictionary<string, List<BaseItem>>> GetItemsByLanguageAsync(CancellationToken cancellationToken = default)
+    /// <returns>The language groups.</returns>
+    public async Task<IReadOnlyList<LanguageGroup>> GetGroupsAsync(CancellationToken cancellationToken = default)
     {
         var config = Plugin.Instance?.Configuration;
         if (config is null)
         {
-            return new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
+            return Array.Empty<LanguageGroup>();
         }
 
         var includeItemTypes = BuildIncludeTypes(config);
         if (includeItemTypes.Length == 0)
         {
-            return new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
+            return Array.Empty<LanguageGroup>();
         }
 
         var allItems = _libraryManager.GetItemList(new InternalItemsQuery
@@ -73,75 +81,70 @@ public class LanguageCollectionProvider
 
         _logger.LogInformation("LanguageSort: found {Count} items to group.", allItems.Count);
 
-        var grouped = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
-        var format = config.LanguageDisplayFormat;
+        // Give TMDb a fresh chance each run, even if an earlier run hit failures.
+        _tmdbClient.ResetFailures();
+
+        // Keyed by canonical language code, so "ml" and "mal" land in one group.
+        var grouped = new Dictionary<string, List<BaseItem>>(StringComparer.Ordinal);
 
         foreach (var item in allItems)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var langCode = await ResolveLanguageAsync(item, config, cancellationToken).ConfigureAwait(false);
-
-            string displayName;
-            if (string.IsNullOrWhiteSpace(langCode))
+            var key = LanguageHelper.Normalize(langCode);
+            if (key is null)
             {
                 if (!config.ShowUnknownLanguage)
                 {
                     continue;
                 }
 
-                displayName = UnknownLanguageName;
-            }
-            else
-            {
-                displayName = LanguageHelper.Resolve(langCode, format);
+                key = UnknownLanguageCode;
             }
 
-            if (!grouped.TryGetValue(displayName, out var list))
+            if (!grouped.TryGetValue(key, out var list))
             {
                 list = new List<BaseItem>();
-                grouped[displayName] = list;
+                grouped[key] = list;
             }
 
             list.Add(item);
         }
 
-        return SortGroups(grouped, config, format);
+        var format = config.LanguageDisplayFormat;
+        var groups = grouped
+            .Select(kvp => new LanguageGroup(kvp.Key, GetDisplayName(kvp.Key, format), kvp.Value))
+            .ToList();
+
+        return SortGroups(groups, config);
     }
+
+    /// <summary>
+    /// Returns the display name for a canonical language code in the given format.
+    /// </summary>
+    /// <param name="code">Canonical code from <see cref="LanguageHelper.Normalize"/>, or <see cref="UnknownLanguageCode"/>.</param>
+    /// <param name="format">"EnglishName", "NativeName", or "IsoCode".</param>
+    /// <returns>The display name.</returns>
+    public static string GetDisplayName(string code, string format)
+        => code == UnknownLanguageCode ? UnknownLanguageName : LanguageHelper.Resolve(code, format);
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private static Dictionary<string, List<BaseItem>> SortGroups(
-        Dictionary<string, List<BaseItem>> grouped,
-        Configuration.PluginConfiguration config,
-        string format)
+    private static List<LanguageGroup> SortGroups(List<LanguageGroup> groups, Configuration.PluginConfiguration config)
     {
         // Pinned languages first (in the order the user listed them), then alphabetical.
-        var pinnedNames = (config.PinnedLanguages ?? string.Empty)
+        var pinnedCodes = (config.PinnedLanguages ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(code => LanguageHelper.Resolve(code, format))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(LanguageHelper.Normalize)
+            .OfType<string>()
+            .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        var sorted = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var pinned in pinnedNames)
-        {
-            if (grouped.TryGetValue(pinned, out var pinnedList))
-            {
-                sorted[pinned] = pinnedList;
-            }
-        }
-
-        foreach (var kvp in grouped.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
-        {
-            if (!sorted.ContainsKey(kvp.Key))
-            {
-                sorted[kvp.Key] = kvp.Value;
-            }
-        }
-
-        return sorted;
+        return groups
+            .OrderBy(g => pinnedCodes.IndexOf(g.Code) is var i && i >= 0 ? i : int.MaxValue)
+            .ThenBy(g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static BaseItemKind[] BuildIncludeTypes(Configuration.PluginConfiguration config)
@@ -219,3 +222,11 @@ public class LanguageCollectionProvider
         return language is null or "und" or "zxx" or "mul" or "mis" ? null : language;
     }
 }
+
+/// <summary>
+/// One language group: its canonical code, display name and items.
+/// </summary>
+/// <param name="Code">Canonical language code (stable across display formats), or "unknown".</param>
+/// <param name="DisplayName">Display name in the configured format.</param>
+/// <param name="Items">The items in this group.</param>
+public sealed record LanguageGroup(string Code, string DisplayName, IReadOnlyList<BaseItem> Items);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -39,20 +40,21 @@ public class LanguageSortController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<LanguageGroupDto>>> GetGroupsAsync(CancellationToken cancellationToken)
     {
-        var grouped = await _provider.GetItemsByLanguageAsync(cancellationToken).ConfigureAwait(false);
+        var groups = await _provider.GetGroupsAsync(cancellationToken).ConfigureAwait(false);
 
-        var result = grouped.Select(kvp => new LanguageGroupDto
+        var result = groups.Select(g => new LanguageGroupDto
         {
-            Language = kvp.Key,
-            ItemCount = kvp.Value.Count
+            Language = g.DisplayName,
+            Code = g.Code,
+            ItemCount = g.Items.Count
         }).ToList();
 
         return Ok(result);
     }
 
     /// <summary>
-    /// Returns the items in a specific language group.
-    /// GET /LanguageSort/Items?language=French
+    /// Returns the items in a specific language group, matched by display name or code.
+    /// GET /LanguageSort/Items?language=French (or ?language=fr)
     /// </summary>
     [HttpGet("Items")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -61,14 +63,17 @@ public class LanguageSortController : ControllerBase
         [Required][FromQuery] string language,
         CancellationToken cancellationToken)
     {
-        var grouped = await _provider.GetItemsByLanguageAsync(cancellationToken).ConfigureAwait(false);
+        var groups = await _provider.GetGroupsAsync(cancellationToken).ConfigureAwait(false);
 
-        if (!grouped.TryGetValue(language, out var items))
+        var code = LanguageHelper.Normalize(language);
+        var group = groups.FirstOrDefault(g => string.Equals(g.DisplayName, language, StringComparison.OrdinalIgnoreCase))
+                    ?? groups.FirstOrDefault(g => string.Equals(g.Code, code, StringComparison.Ordinal));
+        if (group is null)
         {
             return NotFound($"No group found for language: {language}");
         }
 
-        var result = items.Select(item => MapToDto(item, language)).ToList();
+        var result = group.Items.Select(item => MapToDto(item, group.DisplayName)).ToList();
         return Ok(result);
     }
 
@@ -91,6 +96,9 @@ public class LanguageGroupDto
     /// <summary>Gets or sets the display name of the language.</summary>
     public string Language { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets the canonical language code (e.g. "fr"), or "unknown".</summary>
+    public string Code { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the number of items in this group.</summary>
     public int ItemCount { get; set; }
 }
@@ -110,7 +118,7 @@ public class LanguageItemDto
     /// <summary>Gets or sets media type (Movie / Series).</summary>
     public string Type { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets original language code.</summary>
+    /// <summary>Gets or sets the language group's display name.</summary>
     public string Language { get; set; } = string.Empty;
 
     /// <summary>Gets or sets a value indicating whether the item has a primary image

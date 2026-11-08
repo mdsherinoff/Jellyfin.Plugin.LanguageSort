@@ -29,6 +29,8 @@ public class LanguageCollectionsTask : IScheduledTask
     /// </summary>
     public const string ProviderIdKey = "LanguageSort";
 
+    private static readonly string[] LegacyDisplayFormats = { "EnglishName", "NativeName", "IsoCode" };
+
     private readonly LanguageCollectionProvider _provider;
     private readonly ICollectionManager _collectionManager;
     private readonly ILibraryManager _libraryManager;
@@ -64,7 +66,7 @@ public class LanguageCollectionsTask : IScheduledTask
     public string Key => "LanguageSortUpdateCollections";
 
     /// <inheritdoc />
-    public string Description => "Creates and updates collections that group movies and TV shows by audio language.";
+    public string Description => "Creates and updates collections that group movies and TV shows by original language.";
 
     /// <inheritdoc />
     public string Category => "Library";
@@ -82,9 +84,10 @@ public class LanguageCollectionsTask : IScheduledTask
     /// <inheritdoc />
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var grouped = await _provider.GetItemsByLanguageAsync(cancellationToken).ConfigureAwait(false);
+        var groups = await _provider.GetGroupsAsync(cancellationToken).ConfigureAwait(false);
 
-        // All collections this plugin created previously, keyed by their tag value.
+        // All collections this plugin created previously, keyed by their tag value
+        // (the canonical language code; older versions used the lower-cased display name).
         // Duplicates (e.g. left over from an interrupted run) are treated as stale.
         var ownedCollections = new Dictionary<string, BoxSet>(StringComparer.OrdinalIgnoreCase);
         var staleCollections = new List<BoxSet>();
@@ -105,27 +108,25 @@ public class LanguageCollectionsTask : IScheduledTask
         }
 
         var processed = 0;
-        foreach (var (displayName, items) in grouped)
+        foreach (var group in groups)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var tag = displayName.ToLowerInvariant();
-            BoxSet collection;
-            if (ownedCollections.Remove(tag, out var existing))
+            var collection = await TakeOwnedCollectionAsync(ownedCollections, group.Code, cancellationToken).ConfigureAwait(false);
+            if (collection is not null)
             {
-                collection = existing;
-                await UpdateCollectionAsync(collection, items).ConfigureAwait(false);
+                await UpdateCollectionAsync(collection, group.Items).ConfigureAwait(false);
             }
             else
             {
-                collection = await CreateCollectionAsync(displayName, tag, items).ConfigureAwait(false);
+                collection = await CreateCollectionAsync(group.DisplayName, group.Code, group.Items).ConfigureAwait(false);
             }
 
-            await ApplyNamingAsync(collection, displayName, cancellationToken).ConfigureAwait(false);
-            await EnsureImageAsync(collection, displayName, cancellationToken).ConfigureAwait(false);
+            await ApplyNamingAsync(collection, group.DisplayName, cancellationToken).ConfigureAwait(false);
+            await EnsureImageAsync(collection, group.DisplayName, cancellationToken).ConfigureAwait(false);
 
             processed++;
-            progress.Report(processed * 100.0 / grouped.Count);
+            progress.Report(processed * 100.0 / groups.Count);
         }
 
         // Whatever is left no longer corresponds to a language group
@@ -141,7 +142,37 @@ public class LanguageCollectionsTask : IScheduledTask
         progress.Report(100);
     }
 
-    private async Task<BoxSet> CreateCollectionAsync(string displayName, string tag, IReadOnlyList<BaseItem> items)
+    /// <summary>
+    /// Finds and removes the existing collection for a language from <paramref name="owned"/>.
+    /// Collections created before v1.0.7 are tagged with the lower-cased display name in
+    /// whatever format was active then; those are matched by every possible display name
+    /// and re-tagged with the language code, so they keep their id, image and favorites.
+    /// </summary>
+    private static async Task<BoxSet?> TakeOwnedCollectionAsync(
+        Dictionary<string, BoxSet> owned,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        if (owned.Remove(code, out var existing))
+        {
+            return existing;
+        }
+
+        foreach (var format in LegacyDisplayFormats)
+        {
+            var legacyTag = LanguageCollectionProvider.GetDisplayName(code, format).ToLowerInvariant();
+            if (owned.Remove(legacyTag, out existing))
+            {
+                existing.SetProviderId(ProviderIdKey, code);
+                await existing.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+                return existing;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<BoxSet> CreateCollectionAsync(string displayName, string code, IReadOnlyList<BaseItem> items)
     {
         _logger.LogInformation("LanguageSort: creating collection {Name} with {Count} items.", displayName, items.Count);
 
@@ -149,7 +180,7 @@ public class LanguageCollectionsTask : IScheduledTask
         {
             Name = displayName,
             IsLocked = true,
-            ProviderIds = new Dictionary<string, string> { [ProviderIdKey] = tag },
+            ProviderIds = new Dictionary<string, string> { [ProviderIdKey] = code },
             ItemIdList = items.Select(i => i.Id.ToString("N")).ToArray()
         }).ConfigureAwait(false);
     }

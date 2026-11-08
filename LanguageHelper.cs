@@ -40,6 +40,26 @@ public static class LanguageHelper
     };
 
     /// <summary>
+    /// Returns a canonical, display-format-independent key for a language code, so
+    /// that e.g. "ml", "mal" and "ml-IN" all map to the same group: the 2-letter code
+    /// when one exists, otherwise the 3-letter code. Unrecognised codes are returned
+    /// lower-cased. Returns <c>null</c> for an empty code.
+    /// </summary>
+    /// <param name="isoCode">ISO 639 language code (2 or 3 letters), optionally with a region subtag.</param>
+    /// <returns>The canonical key, or <c>null</c>.</returns>
+    public static string? Normalize(string? isoCode)
+    {
+        if (string.IsNullOrWhiteSpace(isoCode))
+        {
+            return null;
+        }
+
+        var code = isoCode.Trim().ToLowerInvariant();
+        var culture = CultureCache.GetOrAdd(code, FindCulture);
+        return culture is null ? code : culture.TwoLetterISOLanguageName.ToLowerInvariant();
+    }
+
+    /// <summary>
     /// Resolves an ISO 639-1 (2-letter) or ISO 639-2 (3-letter) language code to a display name.
     /// Falls back to the raw code (upper-cased) if the code is not recognised.
     /// </summary>
@@ -110,7 +130,17 @@ public static class LanguageHelper
             }
         }
 
-        return null;
+        // Some languages (e.g. "yue", Cantonese) have no neutral culture whose
+        // ThreeLetterISOLanguageName matches, but can be looked up directly.
+        try
+        {
+            var culture = CultureInfo.GetCultureInfo(threeLetterCode, predefinedOnly: true);
+            return string.IsNullOrEmpty(culture.Name) ? null : culture;
+        }
+        catch (CultureNotFoundException)
+        {
+            return null;
+        }
     }
 
     private static string StripRegion(string name)

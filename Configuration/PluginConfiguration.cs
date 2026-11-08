@@ -37,13 +37,13 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>
     /// Gets or sets a value indicating whether to guess the language from the
-    /// writing system of the original title when audio streams carry no language tag.
+    /// writing system of the original title when TMDb gives no answer.
     /// </summary>
     public bool UseOriginalTitleFallback { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the TMDb API key (v3). When set, items whose language can't be
-    /// determined locally are looked up on TMDb using their stored TMDb id.
+    /// Gets or sets the TMDb API key (v3). When set, each item's original language is
+    /// looked up on TMDb using its stored TMDb id and preferred over local detection.
     /// </summary>
     public string TmdbApiKey { get; set; } = string.Empty;
 
